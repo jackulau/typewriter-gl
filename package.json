@@ -1,0 +1,13 @@
+{
+  "name": "typewriter-gl",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A typewriter simulated from the slug up: rigid-body mechanics at 384 kHz in an AudioWorklet, sound and ink from the same contact forces.",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 5178 --bind 127.0.0.1",
+    "test": "node tools/fuzz.mjs 40",
+    "render": "node tools/render-test.mjs"
+  },
+  "license": "MIT"
+}

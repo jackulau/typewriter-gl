@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+.vercel/
+.venv/
+tasks/
+*.wav
+__pycache__/
+.ruff_cache/

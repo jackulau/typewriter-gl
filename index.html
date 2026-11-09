@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Typewriter</title>
+<meta name="description" content="A physical simulation of how a typewriter makes sound and ink. Keys, typebars, escapement and bell run as a 384 kHz rigid-body simulation; every sound is a contact force and every letter is a pressure print.">
+<meta name="theme-color" content="#030304">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101011'/%3E%3Ctext x='16' y='23' font-family='Courier New,monospace' font-size='22' font-weight='700' text-anchor='middle' fill='%23e8e4dd'%3Et%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link id="webfonts" href="https://fonts.googleapis.com/css2?family=Courier+Prime&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="gl" aria-label="A typewriter. Drag to look around, scroll to zoom."></canvas>
+<div id="vig"></div>
+<textarea id="sink" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Typewriter keyboard input"></textarea>
+
+<header id="teaser">
+  <p>A physical simulation of how a typewriter makes sound and ink. <button class="link" id="b-more">More</button></p>
+</header>
+
+<nav id="toggles">
+  <button id="t-type" aria-pressed="false"><span class="dot" aria-hidden="true"></span><span id="type-label">Type a poem</span></button>
+  <button id="t-ctl" aria-pressed="false" aria-controls="ctl">Controls</button>
+</nav>
+
+<div id="credit"><button id="t-reset" hidden>Reset view</button><span>Web Audio · WebGL2</span></div>
+<div id="foot"><span id="status">no paper</span><span id="hint">type on your keyboard · <kbd>Enter</kbd> returns · <kbd>↑</kbd><kbd>↓</kbd> turn the platen</span></div>
+
+<section id="hud" class="panel" aria-live="off">
+  <div class="hud-head"><span>last strike</span><b id="r-char">·</b></div>
+  <canvas id="trace" title="Contact force between slug and platen, first 250 µs"></canvas>
+  <div id="stats">
+    <div><span>peak force</span><b><i id="r-force">-</i> N</b></div><div><span>slug speed</span><b><i id="r-vel">-</i> m/s</b></div>
+    <div><span>contact</span><b><i id="r-dur">-</i> µs</b></div><div><span>impulse</span><b><i id="r-imp">-</i> mN·s</b></div>
+    <div><span>escapement</span><b><i id="r-esc">-</i> ms</b></div><div><span>strikes</span><b><i id="r-n">0</i></b></div>
+  </div>
+</section>
+
+<section id="ctl" class="panel" hidden>
+  <h2>Typist</h2>
+  <div class="row"><select id="text" aria-label="Text"></select></div>
+  <div class="row"><label for="wpm">Speed</label><input id="wpm" type="range" min="25" max="110" step="1"><output id="wpm-out"></output></div>
+  <div class="row"><button id="b-sheet">New sheet</button><button id="b-save">Save page</button></div>
+  <h2>Machine</h2>
+  <div class="row" role="radiogroup" aria-label="Machine">
+    <button role="radio" data-machine="portable" title="1936 · pressed steel">Portable</button>
+    <button role="radio" data-machine="office" title="1952 · cast iron">Office</button>
+    <button role="radio" data-machine="plastic" title="1968 · moulded shell">Plastic</button>
+  </div>
+  <div class="row"><label for="touch">Touch</label><input id="touch" type="range" min="0" max="1" step="0.01"><output></output></div>
+  <div class="row"><label for="platen">Platen</label><input id="platen" type="range" min="0" max="1" step="0.01"><output></output></div>
+  <div class="row"><label for="spring">Mainspring</label><input id="spring" type="range" min="0" max="1" step="0.01"><output></output></div>
+  <div class="row"><label for="ribbon">Ribbon</label><input id="ribbon" type="range" min="0" max="1" step="0.01"><output></output></div>
+  <div class="row"><label for="wear">Wear</label><input id="wear" type="range" min="0" max="1" step="0.01"><output></output></div>
+  <h2>Room</h2>
+  <div class="row"><label for="room">Reverb</label><input id="room" type="range" min="0" max="1" step="0.01"><output></output></div>
+  <div class="row"><label for="volume">Volume</label><input id="volume" type="range" min="0" max="1" step="0.01"><output></output></div>
+  <label class="chk"><input type="checkbox" id="red"> Print with the red half</label>
+  <label class="chk"><input type="checkbox" id="jams"> Typebars can jam</label>
+</section>
+
+<div id="toast" role="status" hidden></div>
+
+<dialog id="more">
+  <h3>A typewriter simulated from the slug up</h3>
+  <p>Nothing here is a recording. Each keystroke becomes a force on a simulated key, which flings a typebar at a rubber platen. The sound is what those contacts would make the machine's frame ring with. The letters on the page are printed by the same contacts.</p>
+  <p><strong>1. Mechanics.</strong> Keys, linkages, 47 typebars, the escapement, mainspring, carriage, line-space ratchet, shift segment and bell run as rigid bodies in an audio worklet, eight steps per sample: 384,000 a second. A steel dog meeting a rack tooth is over in a few dozen microseconds.</p>
+  <p><strong>2. Contact.</strong> When a slug reaches the platen, a Hunt–Crossley contact decides how far it sinks into the rubber, how long it stays (about 130&nbsp;µs) and how hard it rebounds. The small trace in the corner is that force.</p>
+  <p><strong>3. Sound.</strong> Every contact (slug on platen, typebar landing on felt, dog catching the rack, the ratchet clicking as the carriage flies home, the hammer on the bell) excites a modal model of the frame, the typebar and the bell. The strike point travels with the carriage, so every column rings the frame a little differently. Two pickups on the frame give you stereo.</p>
+  <p><strong>4. Ink.</strong> The contact patch grows with the square root of force, so a light touch inks only the middle of each letter. Ink passes through a woven ribbon into paper fibres, and overstrikes add optical density. Each typebar is slightly bent and slightly off-square. Strike before the shift segment settles and you print half of two letters.</p>
+  <ul>
+    <li>Type faster than the carriage can travel and your letters crowd together.</li>
+    <li>Hit two keys at once and the typebars jam at the platen. <code>Esc</code> pulls them apart.</li>
+    <li>The bell rings seven characters before the right margin. <code>Enter</code> throws the carriage home.</li>
+  </ul>
+  <p>Drag to look around, scroll to zoom. In Controls you can change the machine, the platen's hardness, the ribbon, how worn the type is, or let a simulated typist take over.</p>
+  <p class="fine">Fitted rather than derived: the office machine's frame modes, matched to a recording of a 1930s Underwood. The portable and plastic frames and the weave of the ribbon are set by hand. Texts are in the public domain. Typeface: Courier Prime (SIL Open Font License).</p>
+  <form method="dialog"><button>Close</button></form>
+</dialog>
+
+<div id="power"><span id="power-msg">Insert paper</span></div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
