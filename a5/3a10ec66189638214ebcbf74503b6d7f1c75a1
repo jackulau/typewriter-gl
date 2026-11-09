@@ -1,0 +1,79 @@
+.gitignore
+  s_97256ca8bf934f::t_53c5fbb3f4c371 1-8
+.vercelignore
+  s_97256ca8bf934f::t_54102bc69b239c 1-2
+LICENSE
+  s_97256ca8bf934f::t_b155e5a788d570 1-21
+index.html
+  s_97256ca8bf934f::t_1e4ae1169198d7 1-93
+package.json
+  s_97256ca8bf934f::t_cd09c8dde8e2c5 1-13
+src/audio.js
+  s_dfb7d6558296b7::t_8db29d2ed649b3 1-91
+src/audio/typewriter-processor.js
+  s_dfb7d6558296b7::t_74e2e07a0684d7 1-789
+src/keymap.js
+  s_46d65f51dbcf96::t_35d3c5ef26944d 1-44
+src/main.js
+  s_97256ca8bf934f::t_73b8daa1acc872 1-399
+src/scene.js
+  s_97256ca8bf934f::t_2e51dfcdacdef1 1-751
+src/typist.js
+  s_8e040dbdf13565::t_4f89f09c42174c 1-165
+styles.css
+  s_a2e2adfdd01566::t_8839e8c000a228 1-110
+tools/calibrate.mjs
+  s_97256ca8bf934f::t_873dda188336c9 1-24
+tools/fuzz.mjs
+  s_8e040dbdf13565::t_b118eeb718de57 1-55
+tools/render-test.mjs
+  s_97256ca8bf934f::t_fdaf2e81a22da4 1-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a53a10ec66189638214ebcbf74503b6d7f1c75a1",
+  "prompts": {},
+  "sessions": {
+    "s_46d65f51dbcf96": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "341c2d27-6680-4ebe-bcd8-37177ee2092e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jack <72348727+Jack-GitHub12@users.noreply.github.com>"
+    },
+    "s_8e040dbdf13565": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b9889a2-c0d2-4046-9d28-6b07d00c01a8",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jack <72348727+Jack-GitHub12@users.noreply.github.com>"
+    },
+    "s_97256ca8bf934f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d3cd6c9f-8b7d-4ccf-8e43-1193922474d9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jack <72348727+Jack-GitHub12@users.noreply.github.com>"
+    },
+    "s_a2e2adfdd01566": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2cf18cf9-cc03-427b-99d4-81313eea2396",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jack <72348727+Jack-GitHub12@users.noreply.github.com>"
+    },
+    "s_dfb7d6558296b7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6f727f93-c042-4481-8a24-81ed810f0cef",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jack <72348727+Jack-GitHub12@users.noreply.github.com>"
+    }
+  }
+}
