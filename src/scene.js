@@ -44,6 +44,31 @@ function sheetAt(d, out) {
 const TILE_W = 3.6, TILE_H = 4.6, ATLAS_PPM = 40, ATLAS_COLS = 12, FLOATS = 16;
 const INK_PPM = 8;                          // ~203 dpi: also the resolution of "Save page"
 
+// Gaussian blur as three box blurs per axis, the approximation the CSS filter spec defines
+// for blur(sigma) (feGaussianBlur), with zero outside the image.
+function gaussianBlur(src, W, H, sigma) {
+  const d = Math.floor(sigma * 3 * Math.sqrt(2 * Math.PI) / 4 + 0.5), h = d >> 1;
+  const wins = d & 1 ? [[-h, h], [-h, h], [-h, h]] : [[-h, h - 1], [-h + 1, h], [-h, h]];
+  let a = Float32Array.from(src), b = new Float32Array(src.length);
+  for (const [lo, hi] of wins) { boxPass(a, b, W, H, W, 1, lo, hi); [a, b] = [b, a]; }
+  for (const [lo, hi] of wins) { boxPass(a, b, H, W, 1, W, lo, hi); [a, b] = [b, a]; }
+  return a;
+}
+// mean over the window [i+lo, i+hi] along `count` lines of `len` samples
+function boxPass(src, dst, len, count, stride, step, lo, hi) {
+  const inv = 1 / (hi - lo + 1);
+  for (let k = 0; k < count; k++) {
+    const o = k * stride;
+    let s = 0;
+    for (let i = Math.max(0, lo); i <= Math.min(len - 1, hi); i++) s += src[o + i * step];
+    for (let i = 0; i < len; i++) {
+      dst[o + i * step] = s * inv;
+      if (i + hi + 1 < len) s += src[o + (i + hi + 1) * step];
+      if (i + lo >= 0) s -= src[o + (i + lo) * step];
+    }
+  }
+}
+
 const NOISE = `
 float twHash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
 float twNoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
@@ -208,26 +233,27 @@ class Ink {
     const tw = Math.round(TILE_W * ATLAS_PPM), th = Math.round(TILE_H * ATLAS_PPM);
     const n = BARS.length * 2, rows = Math.ceil(n / ATLAS_COLS);
     const W = tw * ATLAS_COLS, H = th * rows;
-    const layer = (blurPx) => {
-      const c = document.createElement('canvas');
-      c.width = W; c.height = H;
-      const x = c.getContext('2d', { willReadFrequently: true });
-      x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
-      x.fillStyle = '#fff';
-      x.font = `${(25.4 / 6) * ATLAS_PPM}px "Courier Prime", "Courier New", monospace`;
-      x.textAlign = 'center'; x.textBaseline = 'alphabetic';
-      if (blurPx) x.filter = `blur(${blurPx}px)`;
-      for (let k = 0; k < n; k++) {
-        const b = BARS[k >> 1];
-        const col = k % ATLAS_COLS, row = Math.floor(k / ATLAS_COLS);
-        x.fillText((k & 1) ? b.hi : b.lo, col * tw + tw / 2, row * th + (TILE_H / 2 + 0.9) * ATLAS_PPM);
-      }
-      return x.getImageData(0, 0, W, H).data;
-    };
-    const sharp = layer(0), soft = layer(0.06 * ATLAS_PPM), wide = layer(0.22 * ATLAS_PPM);
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#fff';
+    x.font = `${(25.4 / 6) * ATLAS_PPM}px "Courier Prime", "Courier New", monospace`;
+    x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+    for (let k = 0; k < n; k++) {
+      const b = BARS[k >> 1];
+      const col = k % ATLAS_COLS, row = Math.floor(k / ATLAS_COLS);
+      x.fillText((k & 1) ? b.hi : b.lo, col * tw + tw / 2, row * th + (TILE_H / 2 + 0.9) * ATLAS_PPM);
+    }
+    const sharp = x.getImageData(0, 0, W, H).data;
+    // Soft and wide layers are Gaussian blurs of the sharp one. A canvas `filter: blur()` on a
+    // willReadFrequently canvas runs on the CPU in Chrome and froze the page for ~2.5 s.
+    const lum = new Float32Array(W * H);
+    for (let i = 0; i < W * H; i++) lum[i] = sharp[i * 4];
+    const soft = gaussianBlur(lum, W, H, 0.06 * ATLAS_PPM), wide = gaussianBlur(lum, W, H, 0.22 * ATLAS_PPM);
     const px = new Uint8Array(W * H * 4);
     for (let i = 0; i < W * H; i++) {
-      px[i * 4] = sharp[i * 4]; px[i * 4 + 1] = soft[i * 4]; px[i * 4 + 2] = wide[i * 4]; px[i * 4 + 3] = 255;
+      px[i * 4] = sharp[i * 4]; px[i * 4 + 1] = Math.round(soft[i]); px[i * 4 + 2] = Math.round(wide[i]); px[i * 4 + 3] = 255;
     }
     const t = new THREE.DataTexture(px, W, H, THREE.RGBAFormat, THREE.UnsignedByteType);
     t.generateMipmaps = true;
@@ -613,7 +639,17 @@ export class TypewriterScene {
   showPaper(on) { this.paper.visible = on; this.dirty = true; }
   addStrike(inst) { this.ink.pending.push(inst); }
   clearInk() { this.ink.pending.length = 0; this.ink.wipe = true; }
-  buildAtlas() { return this.ink.buildAtlas(); }
+  buildAtlas() { return (this._atlas ||= this.ink.buildAtlas()); }
+  // Compile the paper and ink shaders up front, in parallel where the driver allows
+  // (KHR_parallel_shader_compile), so neither the sheet appearing nor the first strike waits
+  // on a cold compile. compile() only visits visible objects, hence the paper toggle.
+  prewarm() {
+    const vis = this.paper.visible;
+    this.paper.visible = true;
+    const p = this.r.compileAsync(this.scene, this.cam);
+    this.paper.visible = vis;
+    return Promise.all([p, this.r.compileAsync(this.ink.scene, this.ink.cam)]);
+  }
   exportPage() { return this.ink.exportPage(); }
 
   setState(st) {

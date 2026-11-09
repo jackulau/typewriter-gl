@@ -393,6 +393,8 @@ function fatal(msg) {
 }
 
 fit();
+// warm up while the page sits idle so feeding the sheet and the first strike don't stall
+if (scene) { scene.buildAtlas(); scene.prewarm().catch(() => {}); }
 if (new URLSearchParams(location.search).has("debug")) window.__tw = { scene, engine };
 drawTrace();
 requestAnimationFrame(() => root.classList.add('ready'));
